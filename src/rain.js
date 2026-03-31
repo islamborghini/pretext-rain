@@ -34,8 +34,8 @@ function createDroplet(canvasW, canvasH, startAtTop) {
     opacity: size.opacity * rand(0.8, 1.2),
     width: size.width,
     diameter: size.diameter,
-    // Momentum ∝ d³ × v, normalized to ~0.5–1.5 range
-    momentum: Math.min(Math.pow(size.diameter / 3, 3) * (size.velocity / 700), 1.5),
+    // Momentum: small ~0.3, medium ~1.0, large ~1.8, huge ~2.8
+    momentum: Math.min(Math.pow(size.diameter / 2.5, 2) * (size.velocity / 600), 3.0),
   }
 }
 
