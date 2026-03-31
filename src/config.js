@@ -11,7 +11,7 @@ export const BG_MID = '#1a1a2e'
 export const BG_BOT = '#0d0d1a'
 
 // Rain
-export const RAIN_COUNT = 150
+export const RAIN_COUNT = 100
 export const RAIN_MIN_SPEED = 500
 export const RAIN_MAX_SPEED = 900
 export const RAIN_MIN_LENGTH = 12
@@ -22,9 +22,9 @@ export const RAIN_COLOR_B = 255
 export const RAIN_BASE_OPACITY = 0.35
 
 // Splash particles
-export const SPLASH_COUNT = 8
-export const SPLASH_SPEED = 150
-export const SPLASH_LIFE = 0.5
+export const SPLASH_COUNT = 5
+export const SPLASH_SPEED = 130
+export const SPLASH_LIFE = 0.4
 export const SPLASH_RADIUS = 1.5
 
 // Ripple impacts — radial force on characters
@@ -45,7 +45,7 @@ export const TEXT_LEAN_FACTOR = 0.10
 export const TEXT_SKEW_FACTOR = 0.03
 
 // Fog
-export const FOG_COUNT = 40
+export const FOG_COUNT = 20
 
 // The paragraph text
 export const PARAGRAPH_TEXT = `The sky darkened as the first drops began to fall, each one a small messenger from the clouds above, carrying with it the scent of wet earth and the promise of renewal. The wind picked up, bending the tall grasses and sending leaves spiraling through the heavy air. Thunder rolled across the valley like a distant drum, its deep resonance vibrating through the ground beneath. Puddles formed quickly in the hollows of the old stone path, their surfaces alive with the dance of a thousand tiny impacts. Lightning split the horizon, illuminating for one brilliant instant the silhouettes of ancient oaks standing sentinel against the storm. The rain intensified, falling in great silver sheets that blurred the boundary between sky and earth, transforming the familiar landscape into something wild and unknowable. Somewhere in the distance, a church bell tolled, its sound almost swallowed by the tempest, a fragile human note amid nature's overwhelming symphony. And yet there was beauty in the chaos, a raw and cleansing power that washed away the dust of ordinary days and left the world gleaming, reborn, trembling with the electricity of change.`
