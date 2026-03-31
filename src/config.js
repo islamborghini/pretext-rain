@@ -66,8 +66,8 @@ export const WAVE_COMPONENTS = [
 export const WAVE_LIFETIME = 3.5        // seconds before wave is removed
 export const WAVE_MAX_ACTIVE = 10
 export const WAVE_MIN_INTERVAL = 120    // ms between new waves
-export const WAVE_AMPLITUDE_BASE = 22   // base displacement in px (scaled by drop momentum)
-export const WAVE_MAX_DISP = 90         // hard clamp
+export const WAVE_AMPLITUDE_BASE = 10   // base displacement in px (scaled by drop momentum)
+export const WAVE_MAX_DISP = 45         // hard clamp
 
 // Wind
 export const WIND_MAX_STRENGTH = 220

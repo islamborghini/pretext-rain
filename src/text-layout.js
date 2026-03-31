@@ -180,8 +180,11 @@ export function evaluateWaves(dt, wind) {
       totalDy *= scale
     }
 
-    p.dx = totalDx
-    p.dy = totalDy
+    // Smooth toward target — gives fluid inertia instead of snapping
+    // Higher lerp rate = more responsive, lower = smoother/laggier
+    const smoothing = 1 - Math.exp(-12 * dt) // ~12 Hz exponential smoothing
+    p.dx += (totalDx - p.dx) * smoothing
+    p.dy += (totalDy - p.dy) * smoothing
   }
 }
 
