@@ -118,6 +118,7 @@ function drawWaveRings(ctx, waveVisuals) {
 
   for (const wave of waveVisuals) {
     const rings = getWaveRings(wave)
+    if (!rings) continue
 
     for (const ring of rings) {
       // Outer glow ring

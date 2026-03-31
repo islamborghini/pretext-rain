@@ -1,6 +1,6 @@
 import { rand } from './utils.js'
 import {
-  RAIN_DROP_SIZES, RAIN_COLOR_R, RAIN_COLOR_G, RAIN_COLOR_B,
+  RAIN_DROP_SIZES,
   WIND_MAX_STRENGTH,
   SPLASH_EJECT_ANGLE_MIN, SPLASH_EJECT_ANGLE_MAX,
   SPLASH_SPEED_BASE, SPLASH_LIFE, SPLASH_RADIUS,
@@ -87,7 +87,7 @@ function spawnCrownSplash(x, y, wind, splashCount, dropMomentum) {
 export function updateRain(dt, wind, textArea, canvasW, canvasH) {
   const impacts = []
   const windVx = wind * WIND_MAX_STRENGTH
-  const { impactChance, splash } = getIntensity()
+  const { splash } = getIntensity()
 
   for (let i = 0; i < droplets.length; i++) {
     const d = droplets[i]
@@ -97,9 +97,8 @@ export function updateRain(dt, wind, textArea, canvasW, canvasH) {
 
     if (textArea && d.y >= textArea.y && d.y <= textArea.y + textArea.height) {
       if (d.x >= textArea.x && d.x <= textArea.x + textArea.width) {
-        if (Math.random() < impactChance) {
-          impacts.push({ x: d.x, y: d.y, momentum: d.momentum })
-        }
+        // Every drop creates a wave — amplitude scales with momentum
+        impacts.push({ x: d.x, y: d.y, momentum: d.momentum })
         spawnCrownSplash(d.x, d.y, wind, splash, d.momentum)
         Object.assign(d, createDroplet(canvasW, canvasH, true))
         continue
