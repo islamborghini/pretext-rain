@@ -1,6 +1,6 @@
 import { rand } from './utils.js'
 import {
-  FONT, TEXT_COLOR, TEXT_SKEW_FACTOR,
+  FONT, TEXT_COLOR,
   BG_TOP, BG_MID, BG_BOT,
   RAIN_COLOR_R, RAIN_COLOR_G, RAIN_COLOR_B,
   FOG_COUNT,
@@ -152,58 +152,42 @@ function drawWaveRings(ctx, waveVisuals) {
   ctx.globalAlpha = 1
 }
 
-// ── Characters ───────────────────────────────────────────────────
+// Color buckets for displaced characters (computed once)
+const COLOR_BUCKETS = 5
+const dispColors = []
+for (let b = 0; b < COLOR_BUCKETS; b++) {
+  const t = b / (COLOR_BUCKETS - 1)
+  const r = Math.round(220 - t * 50)
+  const g = Math.round(215 - t * 15)
+  const blue = Math.round(205 + t * 50)
+  const alpha = (1 - t * 0.4) * 0.95
+  dispColors.push(`rgba(${r},${g},${blue},${alpha.toFixed(2)})`)
+}
+
+// ── Characters: single pass ──────────────────────────────────────
 function drawCharacters(ctx, charParticles, wind) {
   ctx.font = FONT
   ctx.textBaseline = 'middle'
   ctx.textAlign = 'center'
   ctx.shadowBlur = 0
 
-  // Pre-compute color buckets for displaced characters
-  const COLOR_BUCKETS = 6
-  const colors = []
-  for (let b = 0; b < COLOR_BUCKETS; b++) {
-    const t = b / (COLOR_BUCKETS - 1)
-    const r = Math.round(220 - t * 50)
-    const g = Math.round(215 - t * 15)
-    const blue = Math.round(205 + t * 50)
-    const alpha = (1 - t * 0.4) * 0.95
-    colors.push(`rgba(${r},${g},${blue},${alpha.toFixed(2)})`)
-  }
+  let lastStyle = ''
+  const restStyle = TEXT_COLOR
 
-  // Pass 1: at-rest characters
-  ctx.fillStyle = TEXT_COLOR
   for (let i = 0; i < charParticles.length; i++) {
     const p = charParticles[i]
+    if (p.char === ' ') continue
+
     const dispSq = p.dx * p.dx + p.dy * p.dy
+
     if (dispSq < DISP_THRESHOLD) {
-      if (p.char !== ' ') ctx.fillText(p.char, p.restX, p.restY)
-    }
-  }
-
-  // Pass 2: displaced characters
-  for (let i = 0; i < charParticles.length; i++) {
-    const p = charParticles[i]
-    const dispSq = p.dx * p.dx + p.dy * p.dy
-    if (dispSq < DISP_THRESHOLD || p.char === ' ') continue
-
-    const disp = Math.sqrt(dispSq)
-    const x = p.restX + p.dx
-    const y = p.restY + p.dy
-
-    const bucket = Math.min(Math.floor(disp / 15), COLOR_BUCKETS - 1)
-    ctx.fillStyle = colors[bucket]
-
-    // Only rotate fast-moving chars
-    const rotation = wind * TEXT_SKEW_FACTOR * 0.3
-    if (Math.abs(rotation) > 0.01 && disp > 3) {
-      ctx.save()
-      ctx.translate(x, y)
-      ctx.rotate(rotation)
-      ctx.fillText(p.char, 0, 0)
-      ctx.restore()
+      if (lastStyle !== restStyle) { ctx.fillStyle = restStyle; lastStyle = restStyle }
+      ctx.fillText(p.char, p.restX, p.restY)
     } else {
-      ctx.fillText(p.char, x, y)
+      const bucket = Math.min((dispSq / 225) | 0, COLOR_BUCKETS - 1) // 225 = 15²
+      const style = dispColors[bucket]
+      if (lastStyle !== style) { ctx.fillStyle = style; lastStyle = style }
+      ctx.fillText(p.char, p.restX + p.dx, p.restY + p.dy)
     }
   }
 }
