@@ -1,4 +1,4 @@
-import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext'
+import { prepareWithSegments, layoutNextLine } from "https://esm.sh/@chenglou/pretext"
 import {
   FONT, LINE_HEIGHT, PARAGRAPH_TEXT,
   CHAR_SPRING, CHAR_DAMPING, CHAR_MAX_DISP,
