@@ -1,0 +1,13 @@
+{
+  "name": "pretext-weather",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.3",
+    "vite": "^8.0.3"
+  }
+}
