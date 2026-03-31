@@ -8,10 +8,50 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; }
     canvas { display: block; width: 100vw; height: 100vh; cursor: none; }
+
+    #intensity-toggle {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10;
+      display: flex;
+      gap: 6px;
+      background: rgba(10, 14, 30, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(140, 180, 255, 0.15);
+      border-radius: 8px;
+      padding: 6px;
+      cursor: default;
+    }
+
+    #intensity-toggle button {
+      background: transparent;
+      border: 1px solid rgba(140, 180, 255, 0.12);
+      border-radius: 5px;
+      color: rgba(180, 195, 220, 0.6);
+      font: 12px/1 'SF Mono', 'Menlo', 'Consolas', monospace;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.02em;
+    }
+
+    #intensity-toggle button:hover {
+      color: rgba(200, 215, 240, 0.85);
+      border-color: rgba(140, 180, 255, 0.3);
+    }
+
+    #intensity-toggle button.active {
+      background: rgba(100, 150, 255, 0.15);
+      border-color: rgba(140, 180, 255, 0.4);
+      color: rgba(200, 220, 255, 0.95);
+    }
   </style>
 </head>
 <body>
   <canvas id="canvas"></canvas>
+  <div id="intensity-toggle"></div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

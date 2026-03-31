@@ -10,8 +10,17 @@ export const BG_TOP = '#0a0e1a'
 export const BG_MID = '#1a1a2e'
 export const BG_BOT = '#0d0d1a'
 
+// Rain intensity presets: { droplets, impactChance, splashCount }
+export const RAIN_PRESETS = {
+  light:  { count: 40,  impactChance: 0.02, splash: 3 },
+  medium: { count: 100, impactChance: 0.04, splash: 5 },
+  heavy:  { count: 200, impactChance: 0.07, splash: 8 },
+  storm:  { count: 350, impactChance: 0.10, splash: 10 },
+}
+export const RAIN_DEFAULT_INTENSITY = 'medium'
+
 // Rain
-export const RAIN_COUNT = 100
+export const RAIN_COUNT = 100 // overridden at runtime by intensity
 export const RAIN_MIN_SPEED = 500
 export const RAIN_MAX_SPEED = 900
 export const RAIN_MIN_LENGTH = 12
@@ -48,4 +57,4 @@ export const TEXT_SKEW_FACTOR = 0.03
 export const FOG_COUNT = 20
 
 // The paragraph text
-export const PARAGRAPH_TEXT = `The sky darkened as the first drops began to fall, each one a small messenger from the clouds above, carrying with it the scent of wet earth and the promise of renewal. The wind picked up, bending the tall grasses and sending leaves spiraling through the heavy air. Thunder rolled across the valley like a distant drum, its deep resonance vibrating through the ground beneath. Puddles formed quickly in the hollows of the old stone path, their surfaces alive with the dance of a thousand tiny impacts. Lightning split the horizon, illuminating for one brilliant instant the silhouettes of ancient oaks standing sentinel against the storm. The rain intensified, falling in great silver sheets that blurred the boundary between sky and earth, transforming the familiar landscape into something wild and unknowable. Somewhere in the distance, a church bell tolled, its sound almost swallowed by the tempest, a fragile human note amid nature's overwhelming symphony. And yet there was beauty in the chaos, a raw and cleansing power that washed away the dust of ordinary days and left the world gleaming, reborn, trembling with the electricity of change.`
+export const PARAGRAPH_TEXT = `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula ut dictum pharetra, nisi nunc fringilla magna, in commodo elit erat nec turpis. Ut pharetra augue nec augue. Nam elit agna, endrerit sit amet, tincidunt ac, viverra sed, nulla. Donec porta diam eu massa. Quisque diam lorem, interdum vitae, dapibus ac, scelerisque vitae, pede.`

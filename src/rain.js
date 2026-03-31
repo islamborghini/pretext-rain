@@ -1,9 +1,10 @@
 import { rand } from './utils.js'
 import {
-  RAIN_COUNT, RAIN_MIN_SPEED, RAIN_MAX_SPEED,
+  RAIN_MIN_SPEED, RAIN_MAX_SPEED,
   RAIN_MIN_LENGTH, RAIN_MAX_LENGTH, RAIN_BASE_OPACITY,
-  WIND_MAX_STRENGTH, SPLASH_COUNT, SPLASH_SPEED, SPLASH_LIFE, SPLASH_RADIUS,
+  WIND_MAX_STRENGTH, SPLASH_SPEED, SPLASH_LIFE, SPLASH_RADIUS,
 } from './config.js'
+import { getIntensity } from './intensity.js'
 
 const droplets = []
 const splashes = []
@@ -23,13 +24,31 @@ function createDroplet(canvasW, canvasH, startAtTop) {
 export function initRain(canvasW, canvasH) {
   droplets.length = 0
   splashes.length = 0
-  for (let i = 0; i < RAIN_COUNT; i++) {
+  const { count } = getIntensity()
+  for (let i = 0; i < count; i++) {
     droplets.push(createDroplet(canvasW, canvasH, false))
   }
 }
 
-function spawnSplash(x, y, wind) {
-  for (let i = 0; i < SPLASH_COUNT; i++) {
+/**
+ * Adjust droplet pool to match current intensity.
+ * Called each frame — adds/removes gradually.
+ */
+export function syncRainCount(canvasW, canvasH) {
+  const { count } = getIntensity()
+  // Add up to 5 per frame to avoid pop-in
+  while (droplets.length < count && droplets.length < count) {
+    droplets.push(createDroplet(canvasW, canvasH, true))
+    if (droplets.length % 5 === 0) break
+  }
+  // Remove excess
+  while (droplets.length > count) {
+    droplets.pop()
+  }
+}
+
+function spawnSplash(x, y, wind, splashCount) {
+  for (let i = 0; i < splashCount; i++) {
     const angle = rand(-Math.PI * 0.85, -Math.PI * 0.15)
     const speed = rand(SPLASH_SPEED * 0.4, SPLASH_SPEED)
     splashes.push({
@@ -43,13 +62,10 @@ function spawnSplash(x, y, wind) {
   }
 }
 
-/**
- * Update rain. Returns impact points { x, y } for drops that hit the text area.
- * Only a fraction of hits produce actual character-displacing impacts.
- */
 export function updateRain(dt, wind, textArea, canvasW, canvasH) {
   const impacts = []
   const windVx = wind * WIND_MAX_STRENGTH
+  const { impactChance, splash } = getIntensity()
 
   for (let i = 0; i < droplets.length; i++) {
     const d = droplets[i]
@@ -57,26 +73,22 @@ export function updateRain(dt, wind, textArea, canvasW, canvasH) {
     d.x += d.vx * dt
     d.y += d.vy * dt
 
-    // Impact with text area
     if (textArea && d.y >= textArea.y && d.y <= textArea.y + textArea.height) {
       if (d.x >= textArea.x && d.x <= textArea.x + textArea.width) {
-        // ~4% of drops landing in text area create a big impact
-        if (Math.random() < 0.04) {
+        if (Math.random() < impactChance) {
           impacts.push({ x: d.x, y: d.y })
         }
-        spawnSplash(d.x, d.y, wind)
+        spawnSplash(d.x, d.y, wind, splash)
         Object.assign(d, createDroplet(canvasW, canvasH, true))
         continue
       }
     }
 
-    // Off screen → reset
     if (d.y > canvasH + 30 || d.x < -100 || d.x > canvasW + 100) {
       Object.assign(d, createDroplet(canvasW, canvasH, true))
     }
   }
 
-  // Update splashes
   for (let i = splashes.length - 1; i >= 0; i--) {
     const s = splashes[i]
     s.x += s.vx * dt
