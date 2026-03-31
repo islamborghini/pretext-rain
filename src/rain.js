@@ -14,6 +14,7 @@ const splashes = []
 const sizeCapKeys = RAIN_DROP_SIZE_CAPS.map(cap => cap.key)
 
 let currentSizeCap = RAIN_DEFAULT_DROP_SIZE_CAP
+let rainEnabled = true
 
 /**
  * Pick a raindrop size class using the weighted distribution.
@@ -56,6 +57,7 @@ function createDroplet(canvasW, canvasH, startAtTop) {
 export function initRain(canvasW, canvasH) {
   droplets.length = 0
   splashes.length = 0
+  if (!rainEnabled) return
   const { count } = getIntensity()
   for (let i = 0; i < count; i++) {
     droplets.push(createDroplet(canvasW, canvasH, false))
@@ -63,6 +65,7 @@ export function initRain(canvasW, canvasH) {
 }
 
 export function syncRainCount(canvasW, canvasH) {
+  if (!rainEnabled) return
   const { count } = getIntensity()
   while (droplets.length < count) {
     droplets.push(createDroplet(canvasW, canvasH, true))
@@ -99,6 +102,7 @@ function spawnCrownSplash(x, y, wind, splashCount, dropMomentum) {
 }
 
 export function updateRain(dt, wind, textArea, canvasW, canvasH) {
+  if (!rainEnabled) return []
   const impacts = []
   const windVx = wind * WIND_MAX_STRENGTH
   const { splash } = getIntensity()
@@ -169,4 +173,14 @@ export function setMaxDropletSizeByIndex(index) {
   const next = sizeCapKeys[index]
   if (next) currentSizeCap = next
   return currentSizeCap
+}
+
+export function setRainEnabled(enabled, canvasW, canvasH) {
+  rainEnabled = enabled
+  if (!enabled) {
+    droplets.length = 0
+    splashes.length = 0
+    return
+  }
+  initRain(canvasW, canvasH)
 }

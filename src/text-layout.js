@@ -3,10 +3,12 @@ import {
   FONT, LINE_HEIGHT, PARAGRAPH_TEXT,
   WAVE_COMPONENTS, WAVE_AMPLITUDE_BASE, WAVE_MAX_DISP,
   WAVE_INFLUENCE_RADIUS, TEXT_LEAN_FACTOR,
+  CLICK_DROP_FORCE, CLICK_DROP_RADIUS, CLICK_DROP_SPEED, CLICK_DROP_BAND, CLICK_DROP_LIFE,
 } from './config.js'
 
 let charParticles = []
 let activeWaves = []
+let activeDrops = []
 let measureCtx = null
 
 const SCREEN_G = 2.0
@@ -99,6 +101,14 @@ export function addWave(x, y, dropMomentum) {
   })
 }
 
+export function addClickDrop(x, y, strength = 1) {
+  activeDrops.push({
+    x, y,
+    t: 0,
+    strength,
+  })
+}
+
 export function evaluateWaves(dt, wind) {
   // Age and cull
   for (let w = activeWaves.length - 1; w >= 0; w--) {
@@ -111,7 +121,15 @@ export function evaluateWaves(dt, wind) {
     }
   }
 
+  for (let i = activeDrops.length - 1; i >= 0; i--) {
+    activeDrops[i].t += dt
+    if (activeDrops[i].t > CLICK_DROP_LIFE) {
+      activeDrops.splice(i, 1)
+    }
+  }
+
   const numWaves = activeWaves.length
+  const numDrops = activeDrops.length
   const numChars = charParticles.length
   if (numChars === 0) return
 
@@ -166,6 +184,28 @@ export function evaluateWaves(dt, wind) {
       }
 
       const disp = radialDisp * wave.amplitude * invSqrtR
+      totalDx += disp * nx
+      totalDy += disp * ny
+    }
+
+    for (let d = 0; d < numDrops; d++) {
+      const drop = activeDrops[d]
+      const ex = px - drop.x
+      const ey = py - drop.y
+      const rSq = ex * ex + ey * ey
+      if (rSq < 1 || rSq > CLICK_DROP_RADIUS * CLICK_DROP_RADIUS) continue
+
+      const r = Math.sqrt(rSq)
+      const invR = 1 / r
+      const nx = ex * invR
+      const ny = ey * invR
+      const frontRadius = drop.t * CLICK_DROP_SPEED
+      const bandDelta = r - frontRadius
+      const band = Math.exp(-(bandDelta * bandDelta) / (2 * CLICK_DROP_BAND * CLICK_DROP_BAND))
+      const body = Math.max(0, 1 - r / CLICK_DROP_RADIUS)
+      const decay = Math.exp(-drop.t * 2.6)
+      const disp = CLICK_DROP_FORCE * drop.strength * decay * (band * 1.4 + body * body * 0.55)
+
       totalDx += disp * nx
       totalDy += disp * ny
     }

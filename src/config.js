@@ -77,6 +77,11 @@ export const WAVE_MIN_INTERVAL = 30     // ms between new waves
 export const WAVE_AMPLITUDE_BASE = 18   // ← TUNE THIS: base displacement in px per impact
 export const WAVE_MAX_DISP = 80         // ← TUNE THIS: hard clamp on total displacement
 export const WAVE_INFLUENCE_RADIUS = 250 // px — chars beyond this skip the wave (perf)
+export const CLICK_DROP_FORCE = 28
+export const CLICK_DROP_RADIUS = 140
+export const CLICK_DROP_SPEED = 180
+export const CLICK_DROP_BAND = 24
+export const CLICK_DROP_LIFE = 0.95
 
 // Wind
 export const WIND_MAX_STRENGTH = 220
