@@ -13,9 +13,9 @@ export const BG_BOT = '#0d0d1a'
 // Rain intensity presets: { droplets, impactChance, splashCount }
 export const RAIN_PRESETS = {
   light:  { count: 40,  impactChance: 0.02, splash: 3 },
-  medium: { count: 100, impactChance: 0.04, splash: 5 },
-  heavy:  { count: 200, impactChance: 0.07, splash: 8 },
-  storm:  { count: 350, impactChance: 0.10, splash: 10 },
+  medium: { count: 100, impactChance: 0.06, splash: 5 },
+  heavy:  { count: 200, impactChance: 0.09, splash: 8 },
+  storm:  { count: 350, impactChance: 0.13, splash: 10 },
 }
 export const RAIN_DEFAULT_INTENSITY = 'medium'
 
@@ -65,9 +65,9 @@ export const WAVE_COMPONENTS = [
 
 export const WAVE_LIFETIME = 3.5        // seconds before wave is removed
 export const WAVE_MAX_ACTIVE = 10
-export const WAVE_MIN_INTERVAL = 120    // ms between new waves
-export const WAVE_AMPLITUDE_BASE = 10   // base displacement in px (scaled by drop momentum)
-export const WAVE_MAX_DISP = 45         // hard clamp
+export const WAVE_MIN_INTERVAL = 80     // ms between new waves
+export const WAVE_AMPLITUDE_BASE = 16   // base displacement in px (scaled by drop momentum)
+export const WAVE_MAX_DISP = 65         // hard clamp
 
 // Wind
 export const WIND_MAX_STRENGTH = 220
