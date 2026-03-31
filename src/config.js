@@ -33,10 +33,10 @@ export const IMPACT_RADIUS = 120
 export const IMPACT_MAX_ACTIVE = 8
 export const IMPACT_MIN_INTERVAL = 150
 
-// Character physics
-export const CHAR_SPRING = 90       // spring constant pulling back to rest
-export const CHAR_DAMPING = 6       // velocity damping
-export const CHAR_MAX_DISP = 80     // max displacement from rest
+// Character physics — underdamped for fluid oscillation
+export const CHAR_SPRING = 55       // spring constant pulling back to rest
+export const CHAR_DAMPING = 3.5     // low damping = more sloshing
+export const CHAR_MAX_DISP = 100    // max displacement from rest
 
 // Wind
 export const WIND_MAX_STRENGTH = 220
