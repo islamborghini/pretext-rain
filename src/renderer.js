@@ -51,11 +51,17 @@ export function render(ctx, canvasW, canvasH, dpr, charParticles, droplets, spla
   // 4. Characters (each at displaced position)
   drawCharacters(ctx, charParticles, wind)
 
-  // 5. Rain
+  // 5. Water sheen over displaced text areas
+  drawWaterSheen(ctx, impacts)
+
+  // 6. Rain
   drawRain(ctx, droplets, wind)
 
-  // 6. Splashes
+  // 7. Splashes
   drawSplashes(ctx, splashes)
+
+  // 8. Vignette
+  drawVignette(ctx, canvasW, canvasH)
 
   ctx.restore()
 }
@@ -218,4 +224,32 @@ function drawSplashes(ctx, splashes) {
     ctx.fill()
     ctx.restore()
   }
+}
+
+function drawWaterSheen(ctx, impacts) {
+  // Subtle shimmering highlight over active impact zones
+  for (const imp of impacts) {
+    if (imp.alpha < 0.1) continue
+    const r = imp.radius * 1.2
+    const grad = ctx.createRadialGradient(
+      imp.x - r * 0.15, imp.y - r * 0.15, 0,
+      imp.x, imp.y, r
+    )
+    const a = imp.alpha * 0.06
+    grad.addColorStop(0, `rgba(180, 210, 255, ${a})`)
+    grad.addColorStop(0.5, `rgba(150, 190, 255, ${a * 0.4})`)
+    grad.addColorStop(1, 'rgba(150, 190, 255, 0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(imp.x, imp.y, r, 0, Math.PI * 2)
+    ctx.fill()
+  }
+}
+
+function drawVignette(ctx, w, h) {
+  const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.85)
+  grad.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0.4)')
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, w, h)
 }
