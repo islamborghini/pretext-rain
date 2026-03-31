@@ -1,7 +1,7 @@
 import { FONT } from './config.js'
-import { buildCharParticles, applyImpact, updateCharPhysics, getCharParticles } from './text-layout.js'
+import { buildCharParticles, addWave, evaluateWaves, getCharParticles } from './text-layout.js'
 import { initRain, syncRainCount, updateRain, getDroplets, getSplashes } from './rain.js'
-import { spawnImpactVisual, updateImpacts, getImpacts } from './impacts.js'
+import { spawnWaveVisual, updateWaveVisuals, getWaveVisuals } from './impacts.js'
 import { setWindTarget, updateWind } from './wind.js'
 import { render, initFog } from './renderer.js'
 import { getIntensityName, setIntensity, getIntensityKeys } from './intensity.js'
@@ -73,23 +73,26 @@ function loop(now) {
 
   const wind = updateWind()
 
-  // Gradually sync droplet pool to current intensity
   syncRainCount(canvasW, canvasH)
 
   const rainImpacts = updateRain(dt, wind, textArea, canvasW, canvasH)
 
+  // Register new wave sources from raindrop impacts
   for (const imp of rainImpacts) {
-    if (spawnImpactVisual(imp.x, imp.y, now)) {
-      applyImpact(imp.x, imp.y)
+    if (spawnWaveVisual(imp.x, imp.y, now, imp.momentum)) {
+      addWave(imp.x, imp.y, imp.momentum)
     }
   }
 
-  updateImpacts(dt)
-  updateCharPhysics(dt, wind)
+  // Update visual ring tracking
+  updateWaveVisuals(dt)
+
+  // Evaluate analytical wave displacement for all characters
+  evaluateWaves(dt, wind)
 
   render(
     ctx, canvasW, canvasH, dpr,
-    getCharParticles(), getDroplets(), getSplashes(), getImpacts(),
+    getCharParticles(), getDroplets(), getSplashes(), getWaveVisuals(),
     wind, dt
   )
 }

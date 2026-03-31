@@ -1,23 +1,41 @@
 import { rand } from './utils.js'
 import {
-  RAIN_MIN_SPEED, RAIN_MAX_SPEED,
-  RAIN_MIN_LENGTH, RAIN_MAX_LENGTH, RAIN_BASE_OPACITY,
-  WIND_MAX_STRENGTH, SPLASH_SPEED, SPLASH_LIFE, SPLASH_RADIUS,
+  RAIN_DROP_SIZES, RAIN_COLOR_R, RAIN_COLOR_G, RAIN_COLOR_B,
+  WIND_MAX_STRENGTH,
+  SPLASH_EJECT_ANGLE_MIN, SPLASH_EJECT_ANGLE_MAX,
+  SPLASH_SPEED_BASE, SPLASH_LIFE, SPLASH_RADIUS,
 } from './config.js'
 import { getIntensity } from './intensity.js'
 
 const droplets = []
 const splashes = []
 
+/**
+ * Pick a raindrop size class using the weighted distribution.
+ * Smaller drops are more common (Marshall-Palmer distribution approximation).
+ */
+function pickDropSize() {
+  let r = Math.random()
+  for (const size of RAIN_DROP_SIZES) {
+    r -= size.weight
+    if (r <= 0) return size
+  }
+  return RAIN_DROP_SIZES[0]
+}
+
 function createDroplet(canvasW, canvasH, startAtTop) {
+  const size = pickDropSize()
   return {
     x: rand(-50, canvasW + 50),
     y: startAtTop ? rand(-canvasH * 0.3, -10) : rand(-canvasH, canvasH),
-    vy: rand(RAIN_MIN_SPEED, RAIN_MAX_SPEED),
+    vy: size.velocity * rand(0.9, 1.1),
     vx: 0,
-    length: rand(RAIN_MIN_LENGTH, RAIN_MAX_LENGTH),
-    opacity: rand(RAIN_BASE_OPACITY * 0.6, RAIN_BASE_OPACITY),
-    width: rand(0.8, 1.6),
+    length: size.length * rand(0.85, 1.15),
+    opacity: size.opacity * rand(0.8, 1.2),
+    width: size.width,
+    diameter: size.diameter,
+    // Momentum ∝ d³ × v (mass ∝ diameter³ for a sphere)
+    momentum: Math.pow(size.diameter, 3) * size.velocity * 0.0001,
   }
 }
 
@@ -30,34 +48,38 @@ export function initRain(canvasW, canvasH) {
   }
 }
 
-/**
- * Adjust droplet pool to match current intensity.
- * Called each frame — adds/removes gradually.
- */
 export function syncRainCount(canvasW, canvasH) {
   const { count } = getIntensity()
-  // Add up to 5 per frame to avoid pop-in
-  while (droplets.length < count && droplets.length < count) {
+  while (droplets.length < count) {
     droplets.push(createDroplet(canvasW, canvasH, true))
     if (droplets.length % 5 === 0) break
   }
-  // Remove excess
   while (droplets.length > count) {
     droplets.pop()
   }
 }
 
-function spawnSplash(x, y, wind, splashCount) {
+/**
+ * Crown splash: secondary droplets eject at 40-70° from horizontal
+ * (Rayleigh-Taylor instability at the crown rim).
+ * Larger impacting drops produce more and faster secondary droplets.
+ */
+function spawnCrownSplash(x, y, wind, splashCount, dropMomentum) {
+  const speedScale = 1 + dropMomentum * 2 // larger drops → faster splashes
   for (let i = 0; i < splashCount; i++) {
-    const angle = rand(-Math.PI * 0.85, -Math.PI * 0.15)
-    const speed = rand(SPLASH_SPEED * 0.4, SPLASH_SPEED)
+    // Ejection angle from horizontal (upward) — 40° to 70° range
+    const angle = -(SPLASH_EJECT_ANGLE_MIN + Math.random() * (SPLASH_EJECT_ANGLE_MAX - SPLASH_EJECT_ANGLE_MIN))
+    // Random azimuth (left or right bias from wind)
+    const azimuth = Math.random() < 0.5 ? -1 : 1
+    const speed = rand(SPLASH_SPEED_BASE * 0.5, SPLASH_SPEED_BASE) * speedScale
+
     splashes.push({
       x, y,
-      vx: Math.cos(angle) * speed + wind * WIND_MAX_STRENGTH * 0.25,
+      vx: Math.cos(angle) * speed * azimuth + wind * WIND_MAX_STRENGTH * 0.2,
       vy: Math.sin(angle) * speed,
       life: rand(SPLASH_LIFE * 0.6, SPLASH_LIFE),
       maxLife: SPLASH_LIFE,
-      radius: rand(SPLASH_RADIUS * 0.5, SPLASH_RADIUS),
+      radius: rand(SPLASH_RADIUS * 0.4, SPLASH_RADIUS) * (1 + dropMomentum),
     })
   }
 }
@@ -76,9 +98,9 @@ export function updateRain(dt, wind, textArea, canvasW, canvasH) {
     if (textArea && d.y >= textArea.y && d.y <= textArea.y + textArea.height) {
       if (d.x >= textArea.x && d.x <= textArea.x + textArea.width) {
         if (Math.random() < impactChance) {
-          impacts.push({ x: d.x, y: d.y })
+          impacts.push({ x: d.x, y: d.y, momentum: d.momentum })
         }
-        spawnSplash(d.x, d.y, wind, splash)
+        spawnCrownSplash(d.x, d.y, wind, splash, d.momentum)
         Object.assign(d, createDroplet(canvasW, canvasH, true))
         continue
       }
@@ -93,7 +115,7 @@ export function updateRain(dt, wind, textArea, canvasW, canvasH) {
     const s = splashes[i]
     s.x += s.vx * dt
     s.y += s.vy * dt
-    s.vy += 400 * dt
+    s.vy += 500 * dt // gravity on secondary droplets
     s.life -= dt
     if (s.life <= 0) splashes.splice(i, 1)
   }

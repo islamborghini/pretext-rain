@@ -19,33 +19,55 @@ export const RAIN_PRESETS = {
 }
 export const RAIN_DEFAULT_INTENSITY = 'medium'
 
-// Rain
-export const RAIN_COUNT = 100 // overridden at runtime by intensity
-export const RAIN_MIN_SPEED = 500
-export const RAIN_MAX_SPEED = 900
-export const RAIN_MIN_LENGTH = 12
-export const RAIN_MAX_LENGTH = 28
+// ── Real raindrop physics ────────────────────────────────────────
+// Raindrop diameter → terminal velocity (from empirical data):
+//   0.5mm → 2.0 m/s,  1mm → 4.0 m/s,  2mm → 6.5 m/s,
+//   3mm → 8.0 m/s,     4mm → 8.8 m/s
+// Screen scale: 1px ≈ 0.3mm. Velocities scaled for visual appeal.
+export const RAIN_DROP_SIZES = [
+  { diameter: 1.5, velocity: 450, length: 10, width: 0.7, opacity: 0.20, weight: 0.35 },
+  { diameter: 2.5, velocity: 600, length: 18, width: 1.0, opacity: 0.30, weight: 0.35 },
+  { diameter: 3.5, velocity: 750, length: 24, width: 1.3, opacity: 0.35, weight: 0.20 },
+  { diameter: 5.0, velocity: 880, length: 30, width: 1.6, opacity: 0.40, weight: 0.10 },
+]
 export const RAIN_COLOR_R = 170
 export const RAIN_COLOR_G = 200
 export const RAIN_COLOR_B = 255
-export const RAIN_BASE_OPACITY = 0.35
 
-// Splash particles
-export const SPLASH_COUNT = 5
-export const SPLASH_SPEED = 130
-export const SPLASH_LIFE = 0.4
+// ── Crown splash physics ─────────────────────────────────────────
+// Secondary droplets eject at 40-70° from horizontal (Rayleigh-Taylor instability)
+// Crown radius ∝ √(We) × √(t), We = ρ v² d / σ
+export const SPLASH_EJECT_ANGLE_MIN = Math.PI * 0.22  // ~40° from horiz
+export const SPLASH_EJECT_ANGLE_MAX = Math.PI * 0.39  // ~70° from horiz
+export const SPLASH_SPEED_BASE = 100
+export const SPLASH_LIFE = 0.5
 export const SPLASH_RADIUS = 1.5
 
-// Ripple impacts — radial force on characters
-export const IMPACT_FORCE = 18000
-export const IMPACT_RADIUS = 120
-export const IMPACT_MAX_ACTIVE = 8
-export const IMPACT_MIN_INTERVAL = 150
+// ── Capillary-gravity wave physics ───────────────────────────────
+// Dispersion relation: ω² = g·k + (σ/ρ)·k³
+// For water: σ = 0.0728 N/m, ρ = 1000 kg/m³, g = 9.81 m/s²
+// Minimum phase velocity: 23.2 cm/s at λ = 1.73 cm
+// Viscous damping: amplitude ∝ exp(-2·ν·k²·t), ν = 1.0×10⁻⁶ m²/s
+//
+// Screen-space wave components (tuned for visual fidelity):
+// Each: { k: wavenumber, amp: relative amplitude, decay: temporal decay rate }
+// Short waves travel faster (capillary regime) and decay faster — this creates
+// the realistic look where fine ripples arrive first, then broader waves follow.
+export const WAVE_COMPONENTS = [
+  { k: 0.045, amp: 1.0,  decay: 0.6  },  // long gravity wave — slow, persistent
+  { k: 0.09,  amp: 0.7,  decay: 1.2  },  // medium gravity-capillary transition
+  { k: 0.18,  amp: 0.4,  decay: 2.5  },  // short capillary wave — fast, fades quick
+  { k: 0.35,  amp: 0.15, decay: 5.0  },  // very short capillary — arrives first, gone fast
+]
+// Phase velocity per component: v_p = ω/k, computed from dispersion relation
+// Geometric spreading: amplitude ∝ 1/√r (2D cylindrical wave)
+// Combined: A(r,t) = A₀ / √(r) × Σ aᵢ × sin(kᵢ·r - ωᵢ·t) × exp(-decayᵢ·t)
 
-// Character physics — underdamped for fluid oscillation
-export const CHAR_SPRING = 55       // spring constant pulling back to rest
-export const CHAR_DAMPING = 3.5     // low damping = more sloshing
-export const CHAR_MAX_DISP = 100    // max displacement from rest
+export const WAVE_LIFETIME = 3.5        // seconds before wave is removed
+export const WAVE_MAX_ACTIVE = 10
+export const WAVE_MIN_INTERVAL = 120    // ms between new waves
+export const WAVE_AMPLITUDE_BASE = 22   // base displacement in px (scaled by drop momentum)
+export const WAVE_MAX_DISP = 90         // hard clamp
 
 // Wind
 export const WIND_MAX_STRENGTH = 220

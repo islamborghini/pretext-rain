@@ -1,25 +1,48 @@
-import { prepareWithSegments, layoutNextLine } from "https://esm.sh/@chenglou/pretext"
+import { prepareWithSegments, layoutNextLine } from '@chenglou/pretext'
 import {
   FONT, LINE_HEIGHT, PARAGRAPH_TEXT,
-  CHAR_SPRING, CHAR_DAMPING, CHAR_MAX_DISP,
-  IMPACT_FORCE, IMPACT_RADIUS,
+  WAVE_COMPONENTS, WAVE_AMPLITUDE_BASE, WAVE_MAX_DISP,
+  TEXT_LEAN_FACTOR,
 } from './config.js'
 
 /**
- * Each character is a physics particle:
- *   restX, restY  — where it belongs in the laid-out paragraph
- *   dx, dy        — displacement from rest
- *   vx, vy        — velocity of displacement
- *   char          — the character string
- *   charWidth     — measured width for rendering
- *   lineIndex     — which line this char belongs to (for neighbor forces)
- *   indexInLine   — position within line
+ * PHYSICS MODEL: Capillary-gravity wave superposition
+ *
+ * Instead of per-character spring-mass simulation, we use the analytical
+ * solution to the 2D wave equation with the real dispersion relation:
+ *
+ *   ω² = g·k + (σ/ρ)·k³
+ *
+ * For each active wave source (raindrop impact), each character's displacement
+ * is computed as the superposition of multiple frequency components:
+ *
+ *   displacement(r, t) = A₀/√(max(r,r_min)) × Σᵢ aᵢ·sin(kᵢ·r − ωᵢ·t) × exp(−dᵢ·t)
+ *
+ * Where:
+ *   - 1/√r  = geometric spreading (2D cylindrical wave)
+ *   - sin(kr − ωt) = propagating wave
+ *   - exp(−d·t) = viscous damping (∝ ν·k² in real water)
+ *   - Short wavelengths arrive first but decay fastest (capillary regime)
+ *   - Long wavelengths arrive later but persist (gravity regime)
+ *
+ * This is both faster (pure evaluation, no iterative stepping) and
+ * physically correct — it produces the characteristic multi-ring ripple
+ * pattern seen in real water.
  */
 
 let charParticles = []
-let lineRanges = [] // { start, end } indices into charParticles per line
-let prepared = null
+let activeWaves = []  // { x, y, t, amplitude, alive }
 let measureCtx = null
+let globalTime = 0
+
+// Pre-compute omega for each wave component from dispersion relation
+// ω = sqrt(g·k + (σ/ρ)·k³) — in screen-space units tuned for visual speed
+const SCREEN_G = 2.0      // effective gravity (screen space)
+const SCREEN_SIGMA_RHO = 800.0  // effective σ/ρ (screen space) — makes short waves fast
+const waveOmegas = WAVE_COMPONENTS.map(c => {
+  const k = c.k
+  return Math.sqrt(SCREEN_G * k + SCREEN_SIGMA_RHO * k * k * k)
+})
 
 function getMeasureCtx() {
   if (!measureCtx) {
@@ -34,20 +57,17 @@ function getMeasureCtx() {
  * Build character particles from pretext layout.
  */
 export function buildCharParticles(textArea) {
-  prepared = prepareWithSegments(PARAGRAPH_TEXT, FONT)
+  const prepared = prepareWithSegments(PARAGRAPH_TEXT, FONT)
   const ctx = getMeasureCtx()
 
   const newParticles = []
-  const newLineRanges = []
   let cursor = { segmentIndex: 0, graphemeIndex: 0 }
   let lineTop = textArea.y
-  let lineIdx = 0
 
   while (lineTop + LINE_HEIGHT <= textArea.y + textArea.height) {
     const line = layoutNextLine(prepared, cursor, textArea.width)
     if (line === null) break
 
-    const lineStart = newParticles.length
     let xPos = textArea.x
     const text = line.text
 
@@ -60,165 +80,115 @@ export function buildCharParticles(textArea) {
         restY: lineTop + LINE_HEIGHT / 2,
         dx: 0,
         dy: 0,
-        vx: 0,
-        vy: 0,
         char: ch,
         charWidth: charW,
-        lineIndex: lineIdx,
-        indexInLine: i,
       })
 
       xPos += charW
     }
 
-    newLineRanges.push({ start: lineStart, end: newParticles.length })
     cursor = line.end
     lineTop += LINE_HEIGHT
-    lineIdx++
-  }
-
-  // Preserve displacement state on resize if particle count matches
-  if (charParticles.length === newParticles.length) {
-    for (let i = 0; i < newParticles.length; i++) {
-      newParticles[i].dx = charParticles[i].dx
-      newParticles[i].dy = charParticles[i].dy
-      newParticles[i].vx = charParticles[i].vx
-      newParticles[i].vy = charParticles[i].vy
-    }
   }
 
   charParticles = newParticles
-  lineRanges = newLineRanges
 }
 
 /**
- * Apply a radial impulse from an impact point.
- * Smooth falloff creates a water-splash pattern.
+ * Register a new wave source from a raindrop impact.
+ * amplitude is proportional to drop momentum (mass × velocity).
  */
-export function applyImpact(ix, iy) {
-  for (let i = 0; i < charParticles.length; i++) {
+export function addWave(x, y, dropMomentum) {
+  activeWaves.push({
+    x, y,
+    t: 0,
+    amplitude: WAVE_AMPLITUDE_BASE * dropMomentum,
+    alive: true,
+  })
+}
+
+/**
+ * Evaluate all wave displacements for every character.
+ * This is the hot path — pure math, no allocations.
+ */
+export function evaluateWaves(dt, wind) {
+  globalTime += dt
+
+  // Age waves and cull dead ones
+  for (let w = activeWaves.length - 1; w >= 0; w--) {
+    activeWaves[w].t += dt
+    // Check if all components have decayed below threshold
+    const wave = activeWaves[w]
+    let maxContribution = 0
+    for (let c = 0; c < WAVE_COMPONENTS.length; c++) {
+      maxContribution += WAVE_COMPONENTS[c].amp * Math.exp(-WAVE_COMPONENTS[c].decay * wave.t)
+    }
+    if (maxContribution * wave.amplitude < 0.3) {
+      activeWaves.splice(w, 1)
+    }
+  }
+
+  const numWaves = activeWaves.length
+  const numChars = charParticles.length
+  const components = WAVE_COMPONENTS
+  const numComp = components.length
+
+  for (let i = 0; i < numChars; i++) {
     const p = charParticles[i]
-    const px = p.restX + p.dx
-    const py = p.restY + p.dy
-    const ex = px - ix
-    const ey = py - iy
-    const distSq = ex * ex + ey * ey
-    const radiusSq = IMPACT_RADIUS * IMPACT_RADIUS
+    let totalDx = 0
+    let totalDy = 0
 
-    if (distSq < radiusSq && distSq > 1) {
-      const dist = Math.sqrt(distSq)
-      // Smooth bell-curve falloff for fluid feel
-      const t = dist / IMPACT_RADIUS
-      const falloff = Math.exp(-t * t * 3) // gaussian-ish
-      const strength = IMPACT_FORCE * falloff
-      const nx = ex / dist
-      const ny = ey / dist
-      p.vx += nx * strength * 0.016
-      p.vy += ny * strength * 0.016
-    }
-  }
-}
+    // Sum contributions from all active wave sources
+    for (let w = 0; w < numWaves; w++) {
+      const wave = activeWaves[w]
+      const ex = p.restX - wave.x
+      const ey = p.restY - wave.y
+      const rSq = ex * ex + ey * ey
+      if (rSq < 1) continue  // avoid singularity at impact center
 
-/**
- * Step physics: spring + damping + neighbor coupling.
- * The neighbor coupling propagates displacement like a wave through the text.
- */
-export function updateCharPhysics(dt, wind) {
-  const particles = charParticles
-  const len = particles.length
-  if (len === 0) return false
+      const r = Math.sqrt(rSq)
+      const invSqrtR = 1 / Math.sqrt(Math.max(r, 8)) // geometric spreading, clamped
 
-  // Neighbor coupling: displaced characters nudge their neighbors
-  // This creates a wave-propagation effect through the text
-  const NEIGHBOR_COUPLING = 12
-  for (let li = 0; li < lineRanges.length; li++) {
-    const { start, end } = lineRanges[li]
-    for (let i = start; i < end; i++) {
-      const p = particles[i]
-      // Left neighbor
-      if (i > start) {
-        const left = particles[i - 1]
-        const ddx = p.dx - left.dx
-        const ddy = p.dy - left.dy
-        p.vx -= ddx * NEIGHBOR_COUPLING * dt
-        p.vy -= ddy * NEIGHBOR_COUPLING * dt
-        left.vx += ddx * NEIGHBOR_COUPLING * dt
-        left.vy += ddy * NEIGHBOR_COUPLING * dt
+      // Unit direction (radial outward from impact)
+      const nx = ex / r
+      const ny = ey / r
+
+      // Superpose all frequency components
+      let radialDisp = 0
+      for (let c = 0; c < numComp; c++) {
+        const comp = components[c]
+        const omega = waveOmegas[c]
+        const phase = comp.k * r - omega * wave.t
+        const envelope = comp.amp * Math.exp(-comp.decay * wave.t)
+        radialDisp += envelope * Math.sin(phase)
       }
+
+      radialDisp *= wave.amplitude * invSqrtR
+
+      totalDx += radialDisp * nx
+      totalDy += radialDisp * ny
     }
+
+    // Add wind lean: gentle continuous displacement proportional to vertical position
+    totalDx += wind * TEXT_LEAN_FACTOR * (p.restY - charParticles[0].restY) * 0.08
+
+    // Clamp total displacement
+    const dist = Math.sqrt(totalDx * totalDx + totalDy * totalDy)
+    if (dist > WAVE_MAX_DISP) {
+      const scale = WAVE_MAX_DISP / dist
+      totalDx *= scale
+      totalDy *= scale
+    }
+
+    p.dx = totalDx
+    p.dy = totalDy
   }
-
-  // Also couple vertically between lines (characters at similar X)
-  // Simplified: just couple with the particle directly above/below by index ratio
-  for (let li = 1; li < lineRanges.length; li++) {
-    const above = lineRanges[li - 1]
-    const current = lineRanges[li]
-    const aboveLen = above.end - above.start
-    const currLen = current.end - current.start
-    if (aboveLen === 0 || currLen === 0) continue
-
-    const VERTICAL_COUPLING = 6
-    for (let ci = current.start; ci < current.end; ci++) {
-      const p = particles[ci]
-      // Map to corresponding index in line above
-      const ratio = (ci - current.start) / currLen
-      const ai = above.start + Math.floor(ratio * aboveLen)
-      const a = particles[ai]
-      if (!a) continue
-
-      const ddx = p.dx - a.dx
-      const ddy = p.dy - a.dy
-      p.vx -= ddx * VERTICAL_COUPLING * dt
-      p.vy -= ddy * VERTICAL_COUPLING * dt
-      a.vx += ddx * VERTICAL_COUPLING * dt
-      a.vy += ddy * VERTICAL_COUPLING * dt
-    }
-  }
-
-  let anyMoving = false
-
-  for (let i = 0; i < len; i++) {
-    const p = particles[i]
-
-    // Spring force toward rest position
-    const fx = -CHAR_SPRING * p.dx
-    const fy = -CHAR_SPRING * p.dy
-
-    // Wind: gentle continuous lateral push
-    const windForce = wind * 25
-
-    // Integrate velocity
-    p.vx += (fx + windForce) * dt
-    p.vy += fy * dt
-
-    // Damping (underdamped for oscillation / fluid feel)
-    const damp = 1 - CHAR_DAMPING * dt
-    p.vx *= damp > 0 ? damp : 0
-    p.vy *= damp > 0 ? damp : 0
-
-    // Integrate position
-    p.dx += p.vx * dt
-    p.dy += p.vy * dt
-
-    // Soft clamp displacement
-    const dist = Math.sqrt(p.dx * p.dx + p.dy * p.dy)
-    if (dist > CHAR_MAX_DISP) {
-      const scale = CHAR_MAX_DISP / dist
-      p.dx *= scale
-      p.dy *= scale
-      p.vx *= 0.6
-      p.vy *= 0.6
-    }
-
-    if (Math.abs(p.vx) > 0.05 || Math.abs(p.vy) > 0.05 ||
-        Math.abs(p.dx) > 0.05 || Math.abs(p.dy) > 0.05) {
-      anyMoving = true
-    }
-  }
-
-  return anyMoving
 }
 
 export function getCharParticles() {
   return charParticles
+}
+
+export function getActiveWaves() {
+  return activeWaves
 }
