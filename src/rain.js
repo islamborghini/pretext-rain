@@ -1,6 +1,8 @@
-import { rand } from './utils.js'
+import { clamp, rand } from './utils.js'
 import {
   RAIN_DROP_SIZES,
+  RAIN_DROP_SIZE_CAPS,
+  RAIN_DEFAULT_DROP_SIZE_CAP,
   WIND_MAX_STRENGTH,
   SPLASH_EJECT_ANGLE_MIN, SPLASH_EJECT_ANGLE_MAX,
   SPLASH_SPEED_BASE, SPLASH_LIFE, SPLASH_RADIUS,
@@ -9,27 +11,39 @@ import { getIntensity } from './intensity.js'
 
 const droplets = []
 const splashes = []
+const sizeCapKeys = RAIN_DROP_SIZE_CAPS.map(cap => cap.key)
+
+let currentSizeCap = RAIN_DEFAULT_DROP_SIZE_CAP
 
 /**
  * Pick a raindrop size class using the weighted distribution.
  * Smaller drops are more common (Marshall-Palmer distribution approximation).
  */
 function pickDropSize() {
+  const maxDiameter = getMaxDropletSize().maxDiameter
+  const availableSizes = RAIN_DROP_SIZES.filter(size => size.diameter <= maxDiameter)
   let r = Math.random()
-  for (const size of RAIN_DROP_SIZES) {
+  let totalWeight = 0
+  for (const size of availableSizes) totalWeight += size.weight
+  r *= totalWeight
+
+  for (const size of availableSizes) {
     r -= size.weight
     if (r <= 0) return size
   }
-  return RAIN_DROP_SIZES[0]
+  return availableSizes[availableSizes.length - 1] || RAIN_DROP_SIZES[0]
 }
 
 function createDroplet(canvasW, canvasH, startAtTop) {
   const size = pickDropSize()
+  const drift = rand(-12, 12)
   return {
     x: rand(-50, canvasW + 50),
     y: startAtTop ? rand(-canvasH * 0.3, -10) : rand(-canvasH, canvasH),
     vy: size.velocity * rand(0.9, 1.1),
-    vx: 0,
+    vx: drift,
+    drift,
+    driftTarget: drift,
     length: size.length * rand(0.85, 1.15),
     opacity: size.opacity * rand(0.8, 1.2),
     width: size.width,
@@ -88,10 +102,14 @@ export function updateRain(dt, wind, textArea, canvasW, canvasH) {
   const impacts = []
   const windVx = wind * WIND_MAX_STRENGTH
   const { splash } = getIntensity()
+  const driftBlend = 1 - Math.exp(-5 * dt)
+  const velocityBlend = 1 - Math.exp(-8 * dt)
 
   for (let i = 0; i < droplets.length; i++) {
     const d = droplets[i]
-    d.vx = windVx + rand(-10, 10)
+    d.driftTarget = clamp(d.driftTarget + rand(-70, 70) * dt, -22, 22)
+    d.drift += (d.driftTarget - d.drift) * driftBlend
+    d.vx += (windVx + d.drift - d.vx) * velocityBlend
     d.x += d.vx * dt
     d.y += d.vy * dt
 
@@ -124,3 +142,31 @@ export function updateRain(dt, wind, textArea, canvasW, canvasH) {
 
 export function getDroplets() { return droplets }
 export function getSplashes() { return splashes }
+
+export function getMaxDropletSize() {
+  return RAIN_DROP_SIZE_CAPS.find(cap => cap.key === currentSizeCap) || RAIN_DROP_SIZE_CAPS[RAIN_DROP_SIZE_CAPS.length - 1]
+}
+
+export function getMaxDropletSizeName() {
+  return currentSizeCap
+}
+
+export function cycleMaxDropletSize() {
+  const idx = sizeCapKeys.indexOf(currentSizeCap)
+  currentSizeCap = sizeCapKeys[(idx + 1) % sizeCapKeys.length]
+  return currentSizeCap
+}
+
+export function getMaxDropletSizeKeys() {
+  return sizeCapKeys
+}
+
+export function getMaxDropletSizeIndex() {
+  return Math.max(sizeCapKeys.indexOf(currentSizeCap), 0)
+}
+
+export function setMaxDropletSizeByIndex(index) {
+  const next = sizeCapKeys[index]
+  if (next) currentSizeCap = next
+  return currentSizeCap
+}

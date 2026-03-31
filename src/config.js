@@ -31,6 +31,13 @@ export const RAIN_DROP_SIZES = [
   { diameter: 3.5, velocity: 750, length: 24, width: 1.3, opacity: 0.35, weight: 0.20 },
   { diameter: 5.0, velocity: 880, length: 30, width: 1.6, opacity: 0.40, weight: 0.10 },
 ]
+export const RAIN_DROP_SIZE_CAPS = [
+  { key: '1.5mm', maxDiameter: 1.5 },
+  { key: '2.5mm', maxDiameter: 2.5 },
+  { key: '3.5mm', maxDiameter: 3.5 },
+  { key: '5.0mm', maxDiameter: 5.0 },
+]
+export const RAIN_DEFAULT_DROP_SIZE_CAP = '5.0mm'
 export const RAIN_COLOR_R = 170
 export const RAIN_COLOR_G = 200
 export const RAIN_COLOR_B = 255

@@ -24,3 +24,13 @@ export function cycleIntensity() {
 export function getIntensityKeys() {
   return keys
 }
+
+export function getIntensityIndex() {
+  return Math.max(keys.indexOf(current), 0)
+}
+
+export function setIntensityByIndex(index) {
+  const next = keys[index]
+  if (next) current = next
+  return current
+}

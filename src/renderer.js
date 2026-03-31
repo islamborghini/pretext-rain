@@ -1,6 +1,6 @@
 import { rand } from './utils.js'
 import {
-  FONT, TEXT_COLOR,
+  FONT, LINE_HEIGHT, TEXT_COLOR,
   BG_TOP, BG_MID, BG_BOT,
   RAIN_COLOR_R, RAIN_COLOR_G, RAIN_COLOR_B,
   FOG_COUNT,
@@ -14,9 +14,20 @@ let cachedW = 0
 let cachedH = 0
 
 let fogParticles = []
+let glyphCache = new Map()
+let glyphCacheFont = ''
+let glyphCacheDpr = 1
 
 const DISP_THRESHOLD = 0.5
 const TWO_PI = Math.PI * 2
+
+function createSurface(w, h) {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h)
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  return canvas
+}
 
 export function initFog(canvasW, canvasH) {
   fogParticles = []
@@ -37,7 +48,7 @@ function ensureStaticCanvases(w, h) {
   cachedW = w
   cachedH = h
 
-  bgCanvas = new OffscreenCanvas(w, h)
+  bgCanvas = createSurface(w, h)
   const bgCtx = bgCanvas.getContext('2d')
   const grad = bgCtx.createLinearGradient(0, 0, 0, h)
   grad.addColorStop(0, BG_TOP)
@@ -46,7 +57,7 @@ function ensureStaticCanvases(w, h) {
   bgCtx.fillStyle = grad
   bgCtx.fillRect(0, 0, w, h)
 
-  vignetteCanvas = new OffscreenCanvas(w, h)
+  vignetteCanvas = createSurface(w, h)
   const vCtx = vignetteCanvas.getContext('2d')
   const vg = vCtx.createRadialGradient(w / 2, h / 2, h * 0.3, w / 2, h / 2, h * 0.85)
   vg.addColorStop(0, 'rgba(0,0,0,0)')
@@ -81,7 +92,7 @@ export function render(ctx, canvasW, canvasH, dpr, charParticles, droplets, spla
   // Dispersive wave rings (under text)
   drawWaveRings(ctx, waveVisuals)
 
-  drawCharacters(ctx, charParticles, wind)
+  drawCharacters(ctx, charParticles, dpr)
 
   // Water sheen over active wave zones
   drawWaterSheen(ctx, waveVisuals)
@@ -164,14 +175,38 @@ for (let b = 0; b < COLOR_BUCKETS; b++) {
   dispColors.push(`rgba(${r},${g},${blue},${alpha.toFixed(2)})`)
 }
 
+function getGlyphSprite(char, style, charWidth, dpr) {
+  if (glyphCacheFont !== FONT || glyphCacheDpr !== dpr) {
+    glyphCacheFont = FONT
+    glyphCacheDpr = dpr
+    glyphCache = new Map()
+  }
+
+  const key = `${dpr}|${style}|${char}`
+  let sprite = glyphCache.get(key)
+  if (sprite) return sprite
+
+  const padding = 4
+  const width = Math.max(1, Math.ceil(charWidth + padding * 2))
+  const height = Math.max(1, Math.ceil(LINE_HEIGHT + padding * 2))
+  const canvas = createSurface(Math.ceil(width * dpr), Math.ceil(height * dpr))
+  const glyphCtx = canvas.getContext('2d')
+  glyphCtx.scale(dpr, dpr)
+  glyphCtx.font = FONT
+  glyphCtx.textBaseline = 'middle'
+  glyphCtx.textAlign = 'center'
+  glyphCtx.fillStyle = style
+  glyphCtx.fillText(char, width / 2, height / 2)
+
+  sprite = { canvas, width, height }
+  glyphCache.set(key, sprite)
+  return sprite
+}
+
 // ── Characters: single pass ──────────────────────────────────────
-function drawCharacters(ctx, charParticles, wind) {
-  ctx.font = FONT
-  ctx.textBaseline = 'middle'
-  ctx.textAlign = 'center'
+function drawCharacters(ctx, charParticles, dpr) {
   ctx.shadowBlur = 0
 
-  let lastStyle = ''
   const restStyle = TEXT_COLOR
 
   for (let i = 0; i < charParticles.length; i++) {
@@ -181,13 +216,22 @@ function drawCharacters(ctx, charParticles, wind) {
     const dispSq = p.dx * p.dx + p.dy * p.dy
 
     if (dispSq < DISP_THRESHOLD) {
-      if (lastStyle !== restStyle) { ctx.fillStyle = restStyle; lastStyle = restStyle }
-      ctx.fillText(p.char, p.restX, p.restY)
+      const sprite = getGlyphSprite(p.char, restStyle, p.charWidth, dpr)
+      ctx.drawImage(
+        sprite.canvas,
+        0, 0, sprite.canvas.width, sprite.canvas.height,
+        p.restX - sprite.width / 2, p.restY - sprite.height / 2,
+        sprite.width, sprite.height
+      )
     } else {
       const bucket = Math.min((dispSq / 225) | 0, COLOR_BUCKETS - 1) // 225 = 15²
-      const style = dispColors[bucket]
-      if (lastStyle !== style) { ctx.fillStyle = style; lastStyle = style }
-      ctx.fillText(p.char, p.restX + p.dx, p.restY + p.dy)
+      const sprite = getGlyphSprite(p.char, dispColors[bucket], p.charWidth, dpr)
+      ctx.drawImage(
+        sprite.canvas,
+        0, 0, sprite.canvas.width, sprite.canvas.height,
+        p.restX + p.dx - sprite.width / 2, p.restY + p.dy - sprite.height / 2,
+        sprite.width, sprite.height
+      )
     }
   }
 }

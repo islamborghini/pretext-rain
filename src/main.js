@@ -1,10 +1,13 @@
 import { FONT } from './config.js'
 import { buildCharParticles, addWave, evaluateWaves, getCharParticles } from './text-layout.js'
-import { initRain, syncRainCount, updateRain, getDroplets, getSplashes } from './rain.js'
+import {
+  initRain, syncRainCount, updateRain, getDroplets, getSplashes,
+  getMaxDropletSizeKeys, getMaxDropletSizeIndex, getMaxDropletSizeName, setMaxDropletSizeByIndex,
+} from './rain.js'
 import { spawnWaveVisual, updateWaveVisuals, getWaveVisuals } from './impacts.js'
 import { setWindTarget, updateWind } from './wind.js'
 import { render, initFog } from './renderer.js'
-import { getIntensityName, setIntensity, getIntensityKeys } from './intensity.js'
+import { getIntensityIndex, getIntensityKeys, getIntensityName, setIntensityByIndex } from './intensity.js'
 
 const canvas = document.getElementById('canvas')
 const ctx = canvas.getContext('2d')
@@ -38,28 +41,66 @@ function resize() {
   buildCharParticles(textArea)
 }
 
-// ── Intensity toggle UI ──────────────────────────────────────────
+// ── Controls UI ──────────────────────────────────────────────────
 function buildToggle() {
   const container = document.getElementById('intensity-toggle')
-  const keys = getIntensityKeys()
+  const rainKeys = getIntensityKeys()
+  const sizeKeys = getMaxDropletSizeKeys()
+
+  const rainLabel = document.createElement('label')
+  rainLabel.className = 'control'
+  const rainTitle = document.createElement('span')
+  rainTitle.className = 'control-title'
+  const rainValue = document.createElement('span')
+  rainValue.className = 'control-value'
+  const rainSlider = document.createElement('input')
+  rainSlider.type = 'range'
+  rainSlider.min = '0'
+  rainSlider.max = String(rainKeys.length - 1)
+  rainSlider.step = '1'
+
+  const sizeLabel = document.createElement('label')
+  sizeLabel.className = 'control'
+  const sizeTitle = document.createElement('span')
+  sizeTitle.className = 'control-title'
+  const sizeValue = document.createElement('span')
+  sizeValue.className = 'control-value'
+  const sizeSlider = document.createElement('input')
+  sizeSlider.type = 'range'
+  sizeSlider.min = '0'
+  sizeSlider.max = String(sizeKeys.length - 1)
+  sizeSlider.step = '1'
 
   function updateButtons() {
-    const active = getIntensityName()
-    for (const btn of container.children) {
-      btn.classList.toggle('active', btn.dataset.key === active)
-    }
+    rainTitle.textContent = 'Rain intensity'
+    rainValue.textContent = getIntensityName()
+    rainSlider.value = String(getIntensityIndex())
+
+    sizeTitle.textContent = 'Max droplet size'
+    sizeValue.textContent = getMaxDropletSizeName()
+    sizeSlider.value = String(getMaxDropletSizeIndex())
   }
 
-  for (const key of keys) {
-    const btn = document.createElement('button')
-    btn.textContent = key
-    btn.dataset.key = key
-    btn.addEventListener('click', () => {
-      setIntensity(key)
-      updateButtons()
-    })
-    container.appendChild(btn)
-  }
+  rainSlider.addEventListener('input', () => {
+    setIntensityByIndex(Number(rainSlider.value))
+    updateButtons()
+  })
+
+  sizeSlider.addEventListener('input', () => {
+    setMaxDropletSizeByIndex(Number(sizeSlider.value))
+    updateButtons()
+  })
+
+  rainLabel.appendChild(rainTitle)
+  rainLabel.appendChild(rainValue)
+  rainLabel.appendChild(rainSlider)
+
+  sizeLabel.appendChild(sizeTitle)
+  sizeLabel.appendChild(sizeValue)
+  sizeLabel.appendChild(sizeSlider)
+
+  container.appendChild(rainLabel)
+  container.appendChild(sizeLabel)
 
   updateButtons()
 }

@@ -76,6 +76,8 @@ export function buildCharParticles(textArea) {
         restY: lineTop + LINE_HEIGHT / 2,
         dx: 0,
         dy: 0,
+        vx: 0,
+        vy: 0,
         char: ch,
         charWidth: charW,
       })
@@ -113,9 +115,10 @@ export function evaluateWaves(dt, wind) {
   const numChars = charParticles.length
   if (numChars === 0) return
 
-  const smoothing = 1 - Math.exp(-10 * dt)
   const refY = charParticles[0].restY
   const windLean = wind * TEXT_LEAN_FACTOR * 0.08
+  const springForce = 300
+  const damping = Math.exp(-18 * dt)
 
   // ── Pre-compute envelopes for all waves (outside char loop) ────
   // This eliminates numChars × numComp Math.exp calls per frame.
@@ -177,9 +180,11 @@ export function evaluateWaves(dt, wind) {
       totalDy *= scale
     }
 
-    // Temporal smoothing
-    p.dx += (totalDx - p.dx) * smoothing
-    p.dy += (totalDy - p.dy) * smoothing
+    // Critically damped spring motion feels smoother than simple easing
+    p.vx = (p.vx + (totalDx - p.dx) * springForce * dt) * damping
+    p.vy = (p.vy + (totalDy - p.dy) * springForce * dt) * damping
+    p.dx += p.vx * dt
+    p.dy += p.vy * dt
   }
 }
 
